@@ -1,0 +1,22 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Catalogue editor (local use only)</title><link rel="stylesheet" href="../css/style.css"></head><body><main class="wrap">
+<h1>Catalogue editor</h1>
+<p class="note"><strong>Local development tool, not authentication.</strong> Anyone who can open this page can use it. It edits data in your browser only; click Download JSON, replace <code>data/resources.json</code>, then run <code>python3 build.py</code>. Never deploy this folder: <code>python3 build.py --prod</code> leaves it out.</p>
+<div class="filters" style="grid-template-columns:1fr"><label class="sr" for="sel">Record</label><select id="sel"></select><div><button class="btn" id="new" type="button">New record</button> <button class="btn" id="del" type="button">Delete record</button> <button class="btn" id="dl" type="button">Download JSON</button></div></div>
+<form id="f" class="ed"></form></main>
+<script>
+const CATS=__CATS__,F=[['slug','Slug (a-z, 0-9, hyphens)'],['title','Title'],['title_ur','Urdu title'],['cat','Category','s'],['desc','Description','a'],['desc_ur','Urdu description','a'],['dim','Dimensions'],['fmt','Formats (comma separated)'],['tags','Tags (comma separated)'],['date','Date (YYYY-MM-DD)'],['color','Preview colour (hex)'],['file','Download file name in files/'],['preview','Preview file name in files/ (optional)']];
+let D=[],i=-1;const $=x=>document.getElementById(x),f=$('f');
+f.innerHTML=F.map(([k,l,t])=>'<label>'+l+(t=='s'?'<select name="'+k+'">'+CATS.map(c=>'<option value="'+c[0]+'">'+c[1]+'</option>').join('')+'</select>':t=='a'?'<textarea name="'+k+'" rows="3"></textarea>':'<input name="'+k+'">')+'</label>').join('')+'<label><input type="checkbox" name="placeholder"> Placeholder (build generates a sample file)</label><label><input type="checkbox" name="premium"> Premium (inactive)</label><button type="submit">Save record</button>';
+const fill=r=>{F.forEach(([k])=>f.elements[k].value=Array.isArray(r[k])?r[k].join(', '):r[k]||'');f.elements.placeholder.checked=!!r.placeholder;f.elements.premium.checked=!!r.premium};
+const list=()=>{$('sel').innerHTML=D.map((r,n)=>'<option value="'+n+'">'+(r.title||r.slug)+'</option>').join('');$('sel').value=i};
+$('sel').onchange=e=>{i=+e.target.value;fill(D[i])};
+$('new').onclick=()=>{i=-1;fill({cat:CATS[0][0],date:new Date().toISOString().slice(0,10),fmt:['PNG'],color:'#0f766e'})};
+$('del').onclick=()=>{if(i>=0&&confirm('Delete this record?')){D.splice(i,1);i=D.length?0:-1;list();D.length&&fill(D[0])}};
+f.onsubmit=e=>{e.preventDefault();const r={};F.forEach(([k])=>{let v=f.elements[k].value.trim();if(k=='fmt'||k=='tags')v=v?v.split(',').map(s=>s.trim()).filter(Boolean):[];if(v.length)r[k]=v});
+if(f.elements.placeholder.checked)r.placeholder=true;if(f.elements.premium.checked)r.premium=true;
+if(!/^[a-z0-9-]+$/.test(r.slug||'')||!r.title||!r.dim||!r.fmt)return alert('Slug (a-z, 0-9, hyphens), title, dimensions and formats are required.');
+if(D.some((x,n)=>x.slug===r.slug&&n!==i))return alert('That slug already exists.');
+if(i<0){D.push(r);i=D.length-1}else D[i]=r;list();alert('Saved in this browser tab. Click Download JSON to keep it.')};
+$('dl').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(D,null,2)],{type:'application/json'}));a.download='resources.json';a.click()};
+fetch('../data/resources.json').then(r=>r.json()).then(d=>{D=d;i=0;list();fill(D[0])}).catch(()=>alert('Could not load the catalogue. Open this page through a local server: python3 -m http.server -d site'));
+</script></body></html>
